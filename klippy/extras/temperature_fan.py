@@ -35,7 +35,7 @@ class TemperatureFan:
             'target_temp', 40. if self.max_temp > 40. else self.max_temp,
             minval=self.min_temp, maxval=self.max_temp)
         self.target_temp = self.target_temp_conf
-        algos = {'watermark': ControlBangBang, 'pid': ControlPID}
+        algos = {'watermark': ControlBangBang, 'ramp': ControlRamp, 'pid': ControlPID}
         algo = config.getchoice('control', algos)
         self.control = algo(self, config)
         self.next_speed_time = 0.
@@ -126,6 +126,30 @@ class ControlBangBang:
             self.heating = False
         elif (not self.heating
               and temp <= target_temp-self.max_delta):
+            self.heating = True
+        if self.heating:
+            self.temperature_fan.set_speed(read_time, 0.)
+        else:
+            self.temperature_fan.set_speed(read_time,
+                                           self.temperature_fan.get_max_speed())
+
+######################################################################
+# Ramp control algo
+######################################################################
+
+class ControlRamp:
+    def __init__(self, temperature_fan, config):
+        self.temperature_fan = temperature_fan
+        self.max_delta = config.getfloat('max_delta', 10.0, above=0.)
+        self.heating = False
+
+    def temperature_callback(self, read_time, temp):
+        current_temp, target_temp = self.temperature_fan.get_temp(read_time)
+        if (self.heating
+                and temp >= target_temp + self.max_delta):
+            self.heating = False
+        elif (not self.heating
+              and temp <= target_temp - self.max_delta):
             self.heating = True
         if self.heating:
             self.temperature_fan.set_speed(read_time, 0.)
