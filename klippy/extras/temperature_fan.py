@@ -145,17 +145,18 @@ class ControlRamp:
 
     def temperature_callback(self, read_time, temp):
         current_temp, target_temp = self.temperature_fan.get_temp(read_time)
-        if (self.heating
-                and temp >= target_temp + self.max_delta):
-            self.heating = False
-        elif (not self.heating
-              and temp <= target_temp - self.max_delta):
-            self.heating = True
-        if self.heating:
-            self.temperature_fan.set_speed(read_time, 0.)
-        else:
-            self.temperature_fan.set_speed(read_time,
-                                           self.temperature_fan.get_max_speed())
+        if temp <= target_temp - self.max_delta:
+            self.temperature_fan.set_speed(
+                read_time, self.temperature_fan.get_min_speed())
+        elif temp >= target_temp:
+            self.temperature_fan.set_speed(
+                read_time, self.temperature_fan.get_max_speed())
+        elif target_temp - self.max_delta < temp < target_temp:
+            ramp_fan_speed_range = self.temperature_fan.get_max_speed() - self.temperature_fan.get_min_speed()
+            ramp_factor = 1 - (target_temp - temp)/self.max_delta
+            ramp_fan_speed = self.temperature_fan.get_min_speed() + (ramp_factor * ramp_fan_speed_range)
+            self.temperature_fan.set_speed(
+                read_time, ramp_fan_speed)
 
 ######################################################################
 # Proportional Integral Derivative (PID) control algo
